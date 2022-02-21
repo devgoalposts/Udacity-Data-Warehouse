@@ -21,22 +21,22 @@ staging_events_table_create= ("""
 CREATE TABLE IF NOT EXISTS staging_events (
         artist varchar,
         auth varchar,
-        first_name varchar,
+        firstName varchar,
         gender varchar,
         itemInSession int,
-        last_name varchar,
+        lastName varchar,
         length float8,
         level varchar,
         location varchar,
         method varchar,
         page varchar,
         registration float8,
-        session_id int,
+        sessionId int,
         song varchar,
         status int,
         ts varchar, 
-        user_agent varchar,
-        user_id varchar
+        userAgent varchar,
+        userId varchar
 );
 """)
 
@@ -132,6 +132,21 @@ format as json 'auto';""").format(ARN)
 
 # FINAL TABLES
 
+songplay_table_insert_try = ("""
+INSERT INTO songplays ( start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
+    SELECT 
+        date_add('ms',CAST(ts as BIGINT),'1970-01-01'),
+        CAST(userId as INT), 
+        level,
+        (SELECT song_id FROM songs     WHERE songs.title   = 'A Heart Without A Home' LIMIT 1),
+        (SELECT artist_id FROM artists WHERE artists.name  = 'The Hellacopters' LIMIT 1),
+        sessionId, 
+        staging_events.location, 
+        userAgent
+            FROM staging_events
+            WHERE userId != ' ';
+""")
+
 songplay_table_insert = ("""
 INSERT INTO songplays ( start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
     SELECT DISTINCT TIMESTAMP 'epoch'+(st.ts/1000)*INTERVAL '1 second',
@@ -139,9 +154,9 @@ INSERT INTO songplays ( start_time, user_id, level, song_id, artist_id, session_
     st.level,
     s.song_id,
     s.artist_id,
-    st.session_id,
+    st.sessionId,
     st.location,
-    st.user_agent
+    st.userAgent
 FROM staging_events st 
 INNER JOIN staging_songs s ON s.title=st.song AND st.artist = s.artist_name
 WHERE st.page = 'NextSong';
@@ -150,16 +165,16 @@ WHERE st.page = 'NextSong';
                       
 user_table_insert_try = ("""
 INSERT INTO users (user_id, first_name, last_name, gender, level)
-SELECT DISTINCT(user_id) as user_id, first_name, last_name, gender, level
+SELECT DISTINCT(userId) as user_id, firstName, lastName, gender, level
     FROM staging_events
-    WHERE user_id != ' '
+    WHERE userId != ' '
     ORDER BY ts desc;
 """)
 
 
 user_table_insert = ("""
 INSERT INTO users (user_id, first_name, last_name, gender, level)
-SELECT DISTINCT(user_id) as user_id, fist_name, last_name, gender, level
+SELECT DISTINCT(userId) as user_id, firstName, lastName, gender, level
     FROM staging_events
     WHERE page ='NextSong'
 """)
@@ -169,6 +184,26 @@ INSERT INTO songs (song_id, title, artist_id, year, duration)
     SELECT DISTINCT(song_id), title, s.artist_id, year, duration 
     FROM staging_songs s
     JOIN artists a     ON (s.artist_name=a.name);
+""")
+
+artist_table_insert_try = ("""
+INSERT INTO songs (song_id, title, artist_id, year, duration)
+    SELECT DISTINCT(song_id), title, a.artist_id, year, duration 
+    FROM staging_songs
+""")
+
+
+artist_table_insert_try = ("""
+INSERT INTO artists (artist_id, name, location, latitude, longitude)
+    SELECT DISTINCT(artist_id), artist_name, artist_location, artist_latitude, artist_longitude
+    FROM staging_songs;
+""")
+
+other_artist_insert = ("""
+INSERT INTO artists (artist_id, name, location, latitude, longitude)
+    SELECT DISTINCT(artist_id), artist_name, artist_location, artist_latitude, artist_longitude
+    FROM staging_songs
+    WHERE artist_id NOT IN (SELECT DISTINCT artist_id FROM artists);
 """)
 
 artist_table_insert = ("""

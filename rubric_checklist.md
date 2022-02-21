@@ -1,9 +1,11 @@
 ## Problems
 
+* I should cast directly into the staging table rather than during the transformation step
 * song_id    is not distinct in songs     table
 * start_time is not distinct in time      table
 * artist_id  is not distinct in artists   table
 * user_id    is not distinct in the users table 
+* Set the column names for all tables as the same
 
 ## Rubric Checklist
 

@@ -1,7 +1,14 @@
 import configparser
 import psycopg2
-from sql_queries import create_table_queries, copy_table_queries, insert_table_queries
+from sql_queries import drop_not_staging_tables, create_table_queries, copy_table_queries, insert_table_queries
 
+def reset_tables(cur, conn):
+    print("Dropping tables (NOT STAGING)")
+    for query in drop_not_staging_tables:
+        cur.execute(query)
+        conn.commit()
+    print("Done reseting tables (NOT STAGING)\n")
+    
 def create_tables(cur, conn):
     print("Creating tables")
     for query in create_table_queries:
@@ -14,7 +21,7 @@ def load_staging_tables(cur, conn):
     for query in copy_table_queries:
         cur.execute(query)
         conn.commit()
-    print("Done copying to staging tables")
+    print("Done copying to staging tables\n")
 
 
 def insert_tables(cur, conn):
@@ -32,7 +39,8 @@ def main():
     conn = psycopg2.connect("host={} dbname={} user={} password={} port={}".format(*config['CLUSTER'].values()))
     cur = conn.cursor()
     create_tables(cur, conn)
-    load_staging_tables(cur, conn)
+    reset_tables(cur, conn)
+    # load_staging_tables(cur, conn)
     insert_tables(cur, conn)
 
     conn.close()
