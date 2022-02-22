@@ -27,7 +27,7 @@ def load_staging_tables(cur, conn):
 def insert_tables(cur, conn):
     print("Inserting into tables")
     for query in insert_table_queries:
-        print("\n\n" + query)
+        # print("\n\n" + query)
         cur.execute(query)
         conn.commit()
     print("Done inserting into tables\n")
