@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS staging_events (
         status int,
         ts varchar, 
         userAgent varchar,
-        userId int
+        userId varchar
 );
 """)
 
@@ -134,29 +134,31 @@ format as json 'auto';""").format(ARN)
 
 songplay_table_insert = ("""
 INSERT INTO songplays ( start_time, user_id, level, song_id, artist_id, session_id, location, user_agent)
-    SELECT DISTINCT TIMESTAMP 'epoch'+(st.ts/1000)*INTERVAL '1 second',
-    CAST(st.userId as INT),
-    st.level,
-    s.song_id,
-    s.artist_id,
-    st.sessionId,
-    st.location,
-    st.userAgent
-FROM staging_events st 
-INNER JOIN staging_songs s ON s.title=st.song AND st.artist = s.artist_name
-WHERE st.page = 'NextSong';
+    SELECT 
+        date_add('ms',CAST(ts as BIGINT),'1970-01-01'),
+        CAST(userId as INT), 
+        level,
+        (SELECT song_id FROM songs     WHERE songs.title   = 'A Heart Without A Home' LIMIT 1),
+        (SELECT artist_id FROM artists WHERE artists.name  = 'The Hellacopters' LIMIT 1),
+        sessionId, 
+        staging_events.location, 
+        userAgent
+            FROM staging_events
+            WHERE userId != ' ';
 """)
 
+                      
 user_table_insert = ("""
 INSERT INTO users (user_id, first_name, last_name, gender, level)
 SELECT DISTINCT(userId) as user_id, firstName, lastName, gender, level
     FROM staging_events
-    WHERE page ='NextSong'
+    WHERE userId != ' '
+    ORDER BY ts desc;
 """)
 
 song_table_insert = ("""
 INSERT INTO songs (song_id, title, artist_id, year, duration)
-    SELECT DISTINCT(song_id), title, s.artist_id, year, duration 
+    SELECT DISTINC(song_id), title, a.artist_id, year, duration 
     FROM staging_songs s
     JOIN artists a     ON (s.artist_name=a.name);
 """)
@@ -166,6 +168,7 @@ INSERT INTO artists (artist_id, name, location, latitude, longitude)
     SELECT DISTINCT(artist_id), artist_name, artist_location, artist_latitude, artist_longitude
     FROM staging_songs;
 """)
+
 
 time_table_insert = ("""
 INSERT INTO time (start_time, hour, day, month, year, weekday)
@@ -184,4 +187,3 @@ create_table_queries = [staging_events_table_create, staging_songs_table_create,
 drop_table_queries = [staging_events_table_drop, staging_songs_table_drop, songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
 copy_table_queries = [staging_events_copy, staging_songs_copy]
 insert_table_queries = [songplay_table_insert, user_table_insert, artist_table_insert, time_table_insert, song_table_insert]
-drop_not_staging_tables = [songplay_table_drop, user_table_drop, song_table_drop, artist_table_drop, time_table_drop]
